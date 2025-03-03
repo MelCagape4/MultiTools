@@ -38,19 +38,12 @@ F) Activate the virtual environment by running the following commands:
 G) Execute the following commands in sequence:
 
 	python manage.py makemigrations logsearch
-
 	python manage.py makemigrations externalizer
-
 	python manage.py makemigrations	dataporter
-
 	python manage.py migrate logsearch
-
 	python manage.py migrate externalizer
-
 	python manage.py migrate dataporter
-
 	python manage.py migrate
-
 	python manage.py collectstatic
 
 H) Create Superuser:
@@ -77,13 +70,9 @@ L) Add the code below in the Resource class's __init__ method, just below the li
 M) Populate the database using imports from SCV files (IMPORT the files below in sequence):
 
 	SysConfig-xx.csv = Configurations
-
 	LogFile-xx.csv = LogFiles
-
 	Environment-xx.csv = Environments
-
 	Server-xx.csv = Servers
-
 	EnvServer-xx.csv = EnvServers
 
 N) Add "UsersDetails" data for dataporter:
@@ -105,11 +94,8 @@ O) Add "Server users" Credentials for dataporter (services access) and Log Searc
 P) Fill-in "Server" credentials per server to be used as a default credential when no credential is found in "Server users".
 
 	APPS URLs:
-
 	DATAPORTER: http://127.0.0.1:8000/dataporter/
-
 	EXTERNALIZER: http://127.0.0.1:8000/externalizer/
-
 	LOGSEARCH: http://127.0.0.1:8000/logsearch/
 
 
