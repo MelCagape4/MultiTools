@@ -11,15 +11,25 @@ A) Clone Repository
 B) Open Visual Studio Project (WebAppCollections.sln)
 
 C) Add Environment:
+
 	1) In the Visual Studio toolbars, click on the "virtualenv" dropdown box.
+ 
  	2) Select "Add Environment..." menu item.
+  
   	3) Fill-in the following:
+   
   	   - Name = folder name of the virtual environment which resides on the repository folder.
+      
   	   - Install packages from file = The value should be the path to "requirements.txt" file.
+      
   	   - Set as current environment = Check this box to set as default environment.
+      
   	4) Click "Create" button to create the environment and download the necessary packages.
+   
 D) Open a Powershell and go to the repository folder (/MultiTools).
+
 E) Go to the "Scripts" sub-folder located inside the environment folder that has been created in Visual Studio (/MultiTools/<environment-name>/Scripts):
+
 F) Activate the virtual environment by running the following commands:
 
 ./Activate.ps1
@@ -28,12 +38,19 @@ cd ../..
 G) Execute the following commands in sequence:
 
 python manage.py makemigrations logsearch
+
 python manage.py makemigrations externalizer
+
 python manage.py makemigrations	dataporter
+
 python manage.py migrate logsearch
+
 python manage.py migrate externalizer
+
 python manage.py migrate dataporter
+
 python manage.py migrate
+
 python manage.py collectstatic
 
 H) Create Superuser:
@@ -47,6 +64,7 @@ python manage.py runserver
 J) Log into Django Admin page using the useruser that has been created: http://127.0.0.1:8000/toolsadmin/login/?next=/toolsadmin/
 
 K) Update the import_export package's resources.py located in the virtual environment (MultiTools/<environment-name>/Lib/site-packages/import_export/resources.py):
+
 	1) Add the code below in the Resource class's __init__ method, just below the line "self.fields = deepcopy(self.fields)"
 	
         for key, value in self.fields.items():
@@ -57,57 +75,79 @@ K) Update the import_export package's resources.py located in the virtual enviro
 
 
 L) Populate the database using imports from SCV files (IMPORT the files below in sequence):
+
 SysConfig-xx.csv = Configurations
+
 LogFile-xx.csv = LogFiles
+
 Environment-xx.csv = Environments
+
 Server-xx.csv = Servers
+
 EnvServer-xx.csv = EnvServers
 
 
 M) Add "UsersDetails" data for dataporter:
+
 	1) Create a Personal Access Token to be used to access the repositories.
+ 
 	2) Fill-in the data of the UsersDetails:
+ 
 		RepositoryURL - The base URL of the repositories. (E.G. https://github.com)
+  
 		RepositoryPrivateToken - The Personal Access Token created to access the repositories
 
 
 N) Add "Server users" Credentials for dataporter (services access) and Log Search Apps:
+
 	1) Fill-in the user credentials per server.
 
 
 O) Fill-in "Server" credentials per server to be used as a default credential when no credential is found in "Server users".
 
 APPS URLs:
+
 DATAPORTER: http://127.0.0.1:8000/dataporter/
+
 EXTERNALIZER: http://127.0.0.1:8000/externalizer/
+
 LOGSEARCH: http://127.0.0.1:8000/logsearch/
 
 
 =====================================================================================================================================
 
 ADD A VIRTUAL ENVIRONMENT (COMMAND LINE) (WARNING: May have issue with script permission depending on your OS setup):
+
 To add virtual environment through command line, execute the following commands:
 
 pip install virtualenv
+
 virtualenv -p python3 venv
+
 cd venv/Scripts
+
 ./Activate.ps1
 
 pip install django
+
 pip install python_gitlab
 
 
 ADD VIRTUAL ENVIRONMENT (VISUAL STUDIO 2022):
+
 To add virtual environment using Visual Studio 2022, do the following:
 
 - In the Solution Explorer, right click on "Python Environments", then select "Add Environment"
+- 
 - The "Add Environment" window pops-up. Change the "Name" field to your desired virtual environment name.
+
 - Press "Create" button and wait for the process to finish installing the required environment.
 
 NOTE: when cloning this repository for the first time, please remove an existing virtual environment and create a new one.
 
 
 HOW TO ADD AN APP TO THE PROJECT:
+
 To add an app to the project, follow these steps:
 
 1. add a folder with the name of your app to the root folder of the repository.
