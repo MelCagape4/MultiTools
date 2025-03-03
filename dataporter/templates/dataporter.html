@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>DATAPORT:</title>
+    {% load static %}
+    <link rel="stylesheet" type="text/css" href="{% static '/dataporter/dataporter.css' %}" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script>
+
+        //=============================================================== PROPERTIES UPDATE FUNCTIONS =========================================================================
+        let callParserInProgress = false;
+
+        function callParser(elmnt) {
+            console.log('callParser()');
+            callParserInProgress = true;
+            checkEnableDataMineButton();
+            var env = $('#environment').val();
+            var selectedServers = '';
+            var serverCount = 0;
+            var hasServers = false;
+            var dataSource = $('#dataSource').val();
+
+            if (dataSource == 'Services') {
+                if ($('#serverCount') != null) {
+                    serverCount = parseInt($('#serverCount').val());
+                }
+
+                for (i = 0; i < serverCount; i++) {
+                    if ($('#server' + i).is(":checked")) {
+                        if (hasServers) selectedServers += ','
+                        selectedServers += $('#server' + i).val();
+                        hasServers = true;
+                    }
+                }
+            }
+
+            $.get('parser/properties', { environment: env, servers: selectedServers, propertyDataSource: dataSource}, function (data) {
+                console.log(data);
+                callParserInProgress = false;
+                checkEnableDataMineButton();
+            });
+        }
+
+
+        function onChangeDataSource(elmnt) {
+            onChangeEnv(elmnt);
+        }
+
+
+        function onChangeEnv(elmnt) {
+            var selectedSource = $('#propertyDataSource').val();
+            if (selectedSource == 'Services') {
+                loadCheckboxServers(sessionStorage.getItem('fixdata'));
+            } else {
+                $('#serverlist').html('');
+            }
+            checkEnableDataMineButton();
+        }
+
+
+        function loadCheckboxServers(data) {
+            var payloadJSON = JSON.parse(data);
+            var selectedEnv = $('#environment').val();
+            var serverlistContent = '';
+            var servers = null;
+            for (i = 0; i < payloadJSON.environments.length; i++) {
+                if (selectedEnv == payloadJSON.environments[i].envName) {
+                    servers = payloadJSON.environments[i].serverList;
+                    break;
+                }
+            }
+
+            if (servers != null) {
+                serverlistContent = 'Servers:<br /><input type="hidden" id="serverCount" value=' + servers.length + ' />';
+                for (i = 0; i < servers.length; i++) {
+                    serverlistContent += '<input type="checkbox" id="server' + i + '" name="server' + i + '" value="' + servers[i] + '" onchange="checkEnableDataMineButton()" checked /><label for="server' + i + '">' + servers[i] + '</label><br>';
+                }
+            }
+            $('#serverlist').html(serverlistContent);
+        }
+
+
+        function loadEnvironmentsServicesDataSources(data) {
+            var payloadJSON = JSON.parse(data);
+
+            // Environments
+            var environmentContent = '';
+            for (i = 0; i < payloadJSON.environments.length; i++) {
+                if (payloadJSON.environments[i].envName != null) {
+                    environmentContent += '<option value="' + payloadJSON.environments[i].envName + '">' + payloadJSON.environments[i].envName + '</option>';
+                } else {
+                    environmentContent += '<option value=""></option>';
+                }
+            }
+            $('#environment').html(environmentContent);
+
+            // Services
+            var servicesContent = '';
+            for (i = 0; i < payloadJSON.services.length; i++) {
+                servicesContent += '<option value="' + payloadJSON.services[i] + '">' + payloadJSON.services[i] + '</option>';
+            }
+            $('#services').html(servicesContent);
+
+            // DataSources
+            var dataSourceContent = '';
+            for (i = 0; i < payloadJSON.propertyDataSource.length; i++) {
+                dataSourceContent += '<option value="' + payloadJSON.propertyDataSource[i] + '">' + payloadJSON.propertyDataSource[i] + '</option>';
+            }
+            $('#propertyDataSource').html(dataSourceContent);
+        }
+
+
+        function checkEnableDataMineButton() {
+            var disableDataMineButton = true;
+            if (callParserInProgress) {
+
+            } else {
+                var dataSource = $('#propertyDataSource').val();
+
+                if (dataSource == 'Services') {
+
+                    var serverCount = parseInt($('#serverCount').val());
+
+                    for (i = 0; i < serverCount; i++) {
+                        disableDataMineButton = !$('#server' + i).is(':checked');
+                        if (!disableDataMineButton) {
+                            break;
+                        }
+                    }
+                    if (!disableDataMineButton && $('#environment').val() == '') {
+                        disableDataMineButton = true;
+                    }
+                } else if ($('#environment').val() != '') {
+                    disableDataMineButton = false;
+                }
+            }
+            $('#dataMineButton').prop('disabled', disableDataMineButton);
+        }
+
+        function onChangeFixdata() {
+            loadEnvironmentsServicesDataSources(sessionStorage.getItem('fixdata'));
+            checkEnableDataMineButton();
+        }
+
+
+        $(document).ready(function () {
+            // Initialize externalizer data
+            $.get('data', {}, function (data) {
+                sessionStorage.setItem('fixdata', data);
+                onChangeFixdata();
+            })
+
+        });
+    </script>
+</head>
+<body>
+    <main>
+        <div class="container-fluid">
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+            <div class="well"><a href="../toolsadmin">Admin</a></div>
+            <div class="well"><a href="../externalizer">Externalization</a></div>
+            <div>
+                <div class="well">
+                    Environment:
+                    <select name="environment" id="environment" onchange="onChangeEnv(this)">
+                    </select>
+                </div>
+                <div class="well">
+                    Data Source:
+                    <select name="propertyDataSource" id="propertyDataSource" onchange="onChangeDataSource(this)">
+                    </select>
+                </div>
+                <div class="well">
+                    <div id="serverlist">
+                    </div>
+                </div>
+                <div class="well">
+                </div>
+                <div class="well">
+                    <br /><br />
+                    <p>Parse the "application.properties" file of all services found and stores the data to the database.</p>
+
+                    <button class="btn btn-primary" id="dataMineButton" onclick="callParser(this)">Update Properties</button>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

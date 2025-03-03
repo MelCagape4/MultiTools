@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>EXTERNALIZATION:</title>
+    {% load static %}
+    <link rel="stylesheet" type="text/css" href="{% static '/externalizer/externalizer.css' %}" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script>
+
+        //=========================================================== EXTERNALIZATION FUNCTIONS ====================================================================
+
+        function onLoadPropertyValue(elemnt) {
+            console.log('onLoadPropertyValue()...');
+
+            $('#loadPropValTemplateButton').prop('disabled', true);
+
+            var propval = $('#propval').val();
+            var selectedService = $('#services').val();
+
+            $.ajaxSetup({
+                data: {
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                    propval: propval,
+                    service: selectedService
+                }
+            });
+            $.ajax({
+                type: 'POST',
+                url: "externalize",
+                success: function (response) {
+                    // on successfull creating object
+                    console.log('externalization response success...');
+
+                    $('#loadPropValTemplateButton').prop('disabled', false);
+
+                    sessionStorage.setItem('externalizedata', response);
+                    var externalizeDataJSON = JSON.parse(sessionStorage.getItem('externalizedata'));
+                    updatepropEditorEnvironment(externalizeDataJSON);
+                    generateMergedData(externalizeDataJSON);
+                    var mergeDataJSON = JSON.parse(sessionStorage.getItem('mergedata'));
+                    buildPropertiesSelectorFromMergeData(mergeDataJSON, $('#propEditorEnvironment').val());
+                    document.getElementById('PropertyEditorButton').click();
+                    //openPage('PropertyEditor', this, '#417690');
+                },
+                error: function (response) {
+                    $('#loadPropValTemplateButton').prop('disabled', false);
+                    // alert the error if any error occured
+                    alert(response["responseJSON"]["error"]);
+                }
+            });
+        }
+
+
+        function processTemplateConfValue(externalizeDataJSON, mergeDataJSON) {
+            console.log('processTemplateConfValue()...');
+            processTemplate(externalizeDataJSON, mergeDataJSON);
+            processConfEnvironment(externalizeDataJSON);
+            processConfValues(externalizeDataJSON, mergeDataJSON);
+        }
+
+
+        function updatepropEditorEnvironment(externalizeDataJSON) {
+            var env = $('#environment').val();
+            var confEnvContent = '';
+            for (i = 0; i < externalizeDataJSON.confValues.length; i++) {
+                confEnvContent += '<option value="' + externalizeDataJSON.confValues[i].envName + '"';
+                if ((env == '' && i == 0) || (env == externalizeDataJSON.confValues[i].envName)) {
+                    confValueContent = externalizeDataJSON.confValues[i].values;
+                    confEnvContent += ' selected="selected"';
+                }
+                confEnvContent += '>' + externalizeDataJSON.confValues[i].envName + '</option>';
+            }
+            confEnvContent += '<option value="GIVEN" selected="selected">DEFAULT</option>';
+            $('#propEditorEnvironment').html(confEnvContent);
+        }
+
+
+        function openPage(pageName, elmnt, color) {
+            // Hide all elements with class="tabcontent" by default */
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+
+            // Remove the background color of all tablinks/buttons
+            tablinks = document.getElementsByClassName("tablink");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].style.backgroundColor = "";
+            }
+
+            // Show the specific tab content
+            document.getElementById(pageName).style.display = "block";
+
+            // Add the specific color to the button used to open the tab content
+            elmnt.style.backgroundColor = color;
+        }
+
+
+        function onChangeService(elmnt) {
+            checkEnableLoadDBButtons();
+            checkExternalizeButton();
+            $('#propEditorEnvironment').html('');
+            $('#template').val('');
+            $('#confval').val('');
+            $('#propertiesSelector').html('');
+            $('#confEnvironment').html('');
+        }
+
+
+        function onChangeDataSource(elmnt) {
+            onChangeEnv(elmnt);
+        }
+
+
+        function onChangeEnv(elmnt) {
+            var selectedSource = $('#propertyDataSource').val();
+            if (selectedSource == 'Services') {
+                loadCheckboxServers(sessionStorage.getItem('fixdata'));
+            } else {
+                $('#serverlist').html('');
+            }
+            checkEnableDataMineButton();
+            checkEnableLoadDBButtons();
+        }
+
+
+        function onChangeConfEnv(elemnt) {
+            console.log('onChangeConfEnv()...');
+            processConfValues(JSON.parse(sessionStorage.getItem('externalizedata')), JSON.parse(sessionStorage.getItem('mergedata')));
+        }
+
+
+        function onChangePropEditorEnv(elmnt) {
+            var externalizeDataJSON = JSON.parse(sessionStorage.getItem('externalizedata'));
+            var mergeDataJSON = JSON.parse(sessionStorage.getItem('mergedata'));
+            var selectedConfEnv = $('#propEditorEnvironment').val().trim().toUpperCase();
+
+            // UPDATE mergeDataJSON...
+            for (i = 0; i < mergeDataJSON.valueSelections.length; i++) {
+                var valueFound = false;
+                for (j = 0; j < mergeDataJSON.valueSelections[i].values.length; j++) {// LOOK FOR VALUE FOR SELECTED ENVIRONMENT...
+                    for (k = 0; k < mergeDataJSON.valueSelections[i].values[j].sources.length; k++) {
+                        if (selectedConfEnv == mergeDataJSON.valueSelections[i].values[j].sources[k].envName.trim().toUpperCase()) {
+                            mergeDataJSON.valueSelections[i].selectedValue = mergeDataJSON.valueSelections[i].values[j].value;
+                            valueFound = true;
+                            break;
+                        }
+                    }
+                    if (valueFound) {
+                        break;
+                    }
+                }
+                if (!valueFound) {// IF NO VALUE FOUND FOR SELECTED ENVIRONMENT, LOOK FOR GIVEN VALUE
+                    for (j = 0; j < mergeDataJSON.valueSelections[i].values.length; j++) {
+                        for (k = 0; k < mergeDataJSON.valueSelections[i].values[j].sources.length; k++) {
+                            if (mergeDataJSON.valueSelections[i].values[j].sources[k].envName.trim().toUpperCase() == 'GIVEN') {
+                                mergeDataJSON.valueSelections[i].selectedValue = mergeDataJSON.valueSelections[i].values[j].value;
+                                valueFound = true;
+                                break;
+                            }
+                        }
+                        if (valueFound) {
+                            break;
+                        }
+                    }
+                }
+            }
+            sessionStorage.setItem("mergedata", JSON.stringify(mergeDataJSON));
+
+            buildPropertiesSelectorFromMergeData(mergeDataJSON, selectedConfEnv);
+
+            //processConfValues(externalizeDataJSON, mergeDataJSON);
+        }
+
+
+        function loadCheckboxServers(data) {
+            var payloadJSON = JSON.parse(data);
+            var selectedEnv = $('#environment').val();
+            var serverlistContent = '';
+            var servers = null;
+            for (i = 0; i < payloadJSON.environments.length; i++) {
+                if (selectedEnv == payloadJSON.environments[i].envName) {
+                    servers = payloadJSON.environments[i].serverList;
+                    break;
+                }
+            }
+
+            if (servers != null) {
+                serverlistContent = 'Servers:<br /><input type="hidden" id="serverCount" value=' + servers.length + ' />';
+                for (i = 0; i < servers.length; i++) {
+                    serverlistContent += '<input type="checkbox" id="server' + i + '" name="server' + i + '" value="' + servers[i] + '" onchange="checkEnableDataMineButton()" checked /><label for="server' + i + '">' + servers[i] + '</label><br>';
+                }
+            }
+            $('#serverlist').html(serverlistContent);
+        }
+
+
+        function checkEnableLoadDBButtons() {
+            if ($('#environment').val() == '' || $('#services').val() == '') {
+                $('#loadDBTemplateButton').prop('disabled', true);
+                $('#loadDBConfButton').prop('disabled', true);
+            } else {
+                $('#loadDBTemplateButton').prop('disabled', false);
+                $('#loadDBConfButton').prop('disabled', false);
+            }
+        }
+
+
+        function checkExternalizeButton() {
+            if ($('#services').val() == '') {
+                $('#loadPropValTemplateButton').prop('disabled', true);
+            } else {
+                $('#loadPropValTemplateButton').prop('disabled', false);
+            }
+        }
+
+
+        function checkEnableDataMineButton() {
+            var dataSource = $('#propertyDataSource').val();
+            var disableDataMineButton = true;
+            if (dataSource == 'Services') {
+
+                var serverCount = parseInt($('#serverCount').val());
+
+                for (i = 0; i < serverCount; i++) {
+                    disableDataMineButton = !$('#server' + i).is(':checked');
+                    if (!disableDataMineButton) {
+                        break;
+                    }
+                }
+                if (!disableDataMineButton && $('#environment').val() == '') {
+                    disableDataMineButton = true;
+                }
+            } else if ($('#environment').val() != '') {
+                disableDataMineButton = false;
+            }
+            $('#dataMineButton').prop('disabled', disableDataMineButton);
+        }
+
+
+        function loadEnvironmentsServicesDataSources(data) {
+            var payloadJSON = JSON.parse(data);
+
+            // Environments
+            var environmentContent = '';
+            for (i = 0; i < payloadJSON.environments.length; i++) {
+                if (payloadJSON.environments[i].envName != null) {
+                    environmentContent += '<option value="' + payloadJSON.environments[i].envName + '">' + payloadJSON.environments[i].envName + '</option>';
+                } else {
+                    environmentContent += '<option value=""></option>';
+                }
+            }
+            $('#environment').html(environmentContent);
+
+            // Services
+            var servicesContent = '';
+            for (i = 0; i < payloadJSON.services.length; i++) {
+                servicesContent += '<option value="' + payloadJSON.services[i] + '">' + payloadJSON.services[i] + '</option>';
+            }
+            $('#services').html(servicesContent);
+
+            // DataSources
+            var dataSourceContent = '';
+            for (i = 0; i < payloadJSON.propertyDataSource.length; i++) {
+                dataSourceContent += '<option value="' + payloadJSON.propertyDataSource[i] + '">' + payloadJSON.propertyDataSource[i] + '</option>';
+            }
+            $('#propertyDataSource').html(dataSourceContent);
+        }
+
+        //TODO: FIX PROPER DATA OUTPUT
+        function generateMergedData(externalizeDataJSON) {
+            console.log('loadPropertiesEditor()...');
+            var propertyValueRows = externalizeDataJSON.propertyValue.split("\n");
+            var templateRows = externalizeDataJSON.template.split('\n');
+            var tag = '';
+            var mergeDataJson = {
+                "valueSelections":[]
+            }
+            for (i = 0; i < propertyValueRows.length; i++) {
+                var cleanRow = propertyValueRows[i].trim();
+                var indexOfEquals = cleanRow.indexOf("=");
+
+                if (indexOfEquals > -1) {
+                    var propertyName = cleanRow.substring(0, indexOfEquals);
+                    var value = cleanRow.substring(indexOfEquals + 1, cleanRow.length);
+                    var selectedValue = value;
+                    var templateInsertionIndex = getTemplateInsertionIndex(propertyName, templateRows, tag);
+                    var valuesJSON = generateMergeDataValues(externalizeDataJSON.searchValues, externalizeDataJSON.propertyValue, propertyName, value);
+
+                    mergeDataJson = addUpdateValueSelections(mergeDataJson, propertyName, selectedValue, templateInsertionIndex, valuesJSON);
+                } else if (cleanRow.indexOf("#") > -1) {
+                    tag = cleanRow.replaceAll("#", "");
+                }
+            }
+
+            sessionStorage.setItem('mergedata', JSON.stringify(mergeDataJson));
+        }
+
+
+        function testTemplateInsertionIndex() {
+            var templateRows = "#tag1\nproperty01.name01.value01=${PROPERTY01_NAME01_VALUE01}\nproperty01.name01.value02=${PROPERTY01_NAME01_VALUE02}\n\n#tag01\nproperty03.name02.value01=${PROPERTY03_NAME02_VALUE01}\nproperty03.name02.value03=${PROPERTY03_NAME02_VALUE03}";
+            console.log(templateRows);
+            console.log('property03.name02.value01 = ' + getTemplateInsertionIndex("property03.name02.value01", templateRows.split("\n"), "tag01"));
+            console.log('property01.name01.value03 = ' + getTemplateInsertionIndex("property01.name01.value03", templateRows.split("\n"), "tag1"));
+            console.log('property03.name02.value04 = ' + getTemplateInsertionIndex("property03.name02.value04", templateRows.split("\n"), "tag01"));
+        }
+
+
+        function getTemplateInsertionIndex(propertyName, templateRows, tag) {
+            // split propertyNames into arrays using the dot (.)
+            var propertyNameArray = propertyName.split(".");
+            var foundTag = false;
+            var possibleInsertion = -1;
+
+            // NO TAG PROCESS
+            if (tag == null || tag == '') {
+                for (templateIndex = 0; templateIndex < templateRows.length; templateIndex++) {
+                    var equalsIndex = templateRows[templateIndex].indexOf("=");
+                    if (equalsIndex > -1) {
+                        var propNameFromTemplate = templateRows[templateIndex].substring(0, equalsIndex).replace("#", "");
+                        possibleInsertion = templateIndex;
+                        if (propNameFromTemplate == propertyName) {
+                            return -1;          //  -1 means TO UPDATE VALUE OF EXISTING PROPERTY. NO INSERTION IS NEEDED
+                        }
+                    }
+                }
+                return templateRows.length - 1;  // ADD TO THE BOTTOM END IF NO TAG IS PROVIDED
+            } else {// WITH TAG PROCESS
+
+                for (templateIndex = 0; templateIndex < templateRows.length; templateIndex++) {
+                    if (foundTag) { // IF TAG IS FOUND...
+                        var equalsIndex = templateRows[templateIndex].indexOf("=");
+                        if (equalsIndex > -1) {
+                            var propNameFromTemplate = templateRows[templateIndex].substring(0, equalsIndex).replace("#", "");
+                            possibleInsertion = templateIndex;
+                            if (propNameFromTemplate == propertyName) {
+                                return -1;          //  -1 means TO UPDATE VALUE OF EXISTING PROPERTY. NO INSERTION IS NEEDED
+                            }/* else {
+                                var propNameFromTemplateArray = propNameFromTemplate.split(".");
+                                for (arrayIndex = 0; arrayIndex < propertyNameArray.length && arrayIndex < propNameFromTemplateArray.length; arrayIndex++) {
+                                    if (propertyNameArray[arrayIndex].localeCompare(propNameFromTemplateArray[arrayIndex]) < 0) {
+                                        return templateIndex;
+                                    }
+                                }
+                            }*/
+                        } else if ((templateRows[templateIndex].indexOf('#') > -1) || templateRows[templateIndex].trim() == '') {
+                            return possibleInsertion;
+                        }
+                    } else { // IF TAG IS NOT YET FOUND, FIND THE TAG
+                        if (templateRows[templateIndex].trim().substr(0, 1) == "#") {
+                            templateTag = templateRows[templateIndex].replace("#", "").trim().toUpperCase();
+                            if (tag.trim().toUpperCase() == templateTag.trim().toUpperCase()) {
+                                foundTag = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!foundTag) {// IF NO TAG WHERE FOUND FROM THE templateRows, NO TAG PROCESS...
+                    return getTemplateInsertionIndex(propertyName, templateRows, '');
+                }
+
+                return templateRows.length - 1;
+            }
+        }
+
+
+        function generateMergeDataValues(searchValuesJSON, propertyValueRaw, propertyName, value) {
+            var valuesJSON = [];
+            var noPropertyFound = true;
+            for (j = 0; j < searchValuesJSON.length; j++) {
+                if (searchValuesJSON[j].propertyName == propertyName) {
+                    valuesJSON = searchValuesJSON[j].values;
+                    noPropertyFound = false;
+                    var noValueFound = true;
+                    for (l = 0; l < valuesJSON.length; l++) {
+                        if (valuesJSON[l].value == value) {
+                            valuesJSON[l].sources.push({
+                                "envName": "GIVEN",
+                                "serviceName": "GIVEN"
+                            });
+                            noValueFound = false;
+                            break;
+                        }
+                    }
+                    if (noValueFound) {
+                        valuesJSON.push({
+                            "value": value,
+                            "sources": [{
+                                "envName": "GIVEN",
+                                "serviceName": "GIVEN"
+                            }]
+                        });
+                    }
+                }
+            }
+            if (noPropertyFound) {
+                valuesJSON.push({
+                    "value": value,
+                    "sources": [{
+                        "envName": "GIVEN",
+                        "serviceName": "GIVEN"
+                    }]
+                });
+            }
+            if (propertyValueRaw.indexOf(value) > -1) {
+
+            }
+            return valuesJSON;
+        }
+
+
+        function processTemplate(externalizeDataJSON, mergeDataJSON) {
+            // PROCESS TEMPLATE
+            var templateRows = externalizeDataJSON.template.split('\n');
+            var templateContent = '';
+            var insertedPropertiesIndices = new Array();
+            for (a = 0; a < templateRows.length; a++) {
+                var propertyName = getPropertyNameFromRow(templateRows[a]);
+                if (propertyName != '') {
+                    var index = getIndexOfPropertyInMergeData(propertyName, mergeDataJSON);
+                    if (index > -1) {
+                        templateContent += mergeDataJSON.valueSelections[index].propertyName + '=${' + getExternalizedPropertyName(mergeDataJSON.valueSelections[index].propertyName) + '}' + '\n';
+                        insertedPropertiesIndices.push(index);
+                    } else {
+                        templateContent += templateRows[a] + '\n';
+                    }
+                } else {
+                    templateContent += templateRows[a] + '\n';
+                }
+
+                var index = getIndexOfTemplateInsertionIndex(a, mergeDataJSON);
+                if (index > -1) {
+                    if (index >= templateRows.length - 1) {
+                        templateContent += '\n';
+                    }
+                    templateContent += mergeDataJSON.valueSelections[index].propertyName + '=${' + getExternalizedPropertyName(mergeDataJSON.valueSelections[index].propertyName) + '}' + '\n';
+                    insertedPropertiesIndices.push(index);
+                }
+            }
+
+            $('#template').val(templateContent);
+        }
+
+
+        function processConfEnvironment(externalizeDataJSON) {
+            var confEnvContent = '';
+            var env = $('#propEditorEnvironment').val();
+            if (env == 'DEFAULT') env = 'DEV';
+            for (i = 0; i < externalizeDataJSON.confValues.length; i++) {
+                confEnvContent += '<option value="' + externalizeDataJSON.confValues[i].envName + '" ' + (externalizeDataJSON.confValues[i].envName == env ? 'selected="selected"' : '') + '>' + externalizeDataJSON.confValues[i].envName + '</option>';
+            }
+            $('#confEnvironment').html(confEnvContent);
+        }
+
+
+        function processConfValues(externalizeDataJSON, mergeDataJSON) {
+            var env = $('#confEnvironment').val();
+            var confRows = null;
+            for (a = 0; a < externalizeDataJSON.confValues.length; a++) {
+                if (env == externalizeDataJSON.confValues[a].envName) {
+                    confRows = externalizeDataJSON.confValues[a].values.split('\n');
+                    break;
+                }
+            }
+            var confValueContent = '';
+            if (confRows != null) {
+
+                // RUNDOWN confRows WHILE UPDATING EXISTING PROPERTIES...
+                insertedPropertiesIndices = new Array();
+                for (a = 0; a < confRows.length; a++) {
+                    var propertyName = getPropertyNameFromRow(confRows[a]);
+                    if (propertyName != '') {// IF CURRENT ROW HAS PROPER PROPERTY NAME, GET THE INDEX OF PROPERTY IN MERGE DATA.
+                        var index = getIndexOfPropertyInMergeData(propertyName, mergeDataJSON);
+                        if (index > -1) {
+                            confValueContent += propertyName + '=' + mergeDataJSON.valueSelections[index].selectedValue + '\n';
+                            insertedPropertiesIndices.push(index);
+                        } else { // IF NO PROPERTY IN MERGE DATA, JUST ADD THE CURRENT ROW
+                            confValueContent += confRows[a] + '\n';
+                        }
+                    } else {// IF NO PROPER PROPERTY NAME IN CURRENT ROW, JUST ADD THE CURRENT ROW
+                        confValueContent += confRows[a] + '\n';
+                    }
+                }
+
+                // RUNDOWN mergeData TO ADD PROPERTIES NOT FOUND IN insertedPropertiesIndices.
+                confValueContent += '\n';
+                for (a = 0; a < mergeDataJSON.valueSelections.length; a++) {
+                    if (insertedPropertiesIndices.indexOf(a) < 0) {
+                        confValueContent += getExternalizedPropertyName(mergeDataJSON.valueSelections[a].propertyName) + '=' + mergeDataJSON.valueSelections[a].selectedValue + '\n';
+                    }
+                }
+            }
+
+            $('#confval').val(confValueContent);
+        }
+
+
+        function buildPropertiesSelectorFromMergeData(mergeDataJSON, env='') {
+            var propertiesSelectorContent = '<div class="row"><div class="col">PROPERTYNAME<input id="propertiesSelectorCount" type="hidden" value="' + mergeDataJSON.valueSelections.length + '" ></div><div class="col">VALUE</div><div class="col">SOURCE</div></div>';
+            for (i = 0; i < mergeDataJSON.valueSelections.length; i++) {
+                propertiesSelectorContent += '<div class="row"><div class="col">' + mergeDataJSON.valueSelections[i].propertyName + '</div><div class="col"><select id="selectedValue' + i + '" onchange="onChangeSelectedValue(this)" >';
+                var optionsContent = '';
+                var sourceContent = '';
+                var tooltipContent = '';
+                for (j = 0; j < mergeDataJSON.valueSelections[i].values.length; j++) {
+                    optionsContent += '<option value="' + mergeDataJSON.valueSelections[i].values[j].value + '" ' + ((mergeDataJSON.valueSelections[i].values[j].value == mergeDataJSON.valueSelections[i].selectedValue) ? 'selected' : '') +
+                        '>' + mergeDataJSON.valueSelections[i].values[j].value + '</option>';
+
+                    if (env != '') {
+                        for (k = 0; k < mergeDataJSON.valueSelections[i].values[j].sources.length; k++) {
+                            if (mergeDataJSON.valueSelections[i].values[j].sources[k].envName.trim().toUpperCase() == env.trim().toUpperCase()) {
+                                sourceContent = mergeDataJSON.valueSelections[i].values[j].sources[k].envName;
+                                tooltipContent = mergeDataJSON.valueSelections[i].values[j].sources[k].serviceName;
+                                break;
+                            }
+                        }
+                    }
+                    if (sourceContent == '' && mergeDataJSON.valueSelections[i].values[j].sources.length > 0) {
+                        sourceContent = mergeDataJSON.valueSelections[i].values[j].sources[0].envName;
+                        tooltipContent = mergeDataJSON.valueSelections[i].values[j].sources[0].serviceName;
+                    }
+                }
+                propertiesSelectorContent += optionsContent + '</select></div><div id="propertiesSelectorSource' + i + '" class="col" title="' + tooltipContent + '">' + sourceContent + '</div></div>';
+            }
+            $('#propertiesSelector').html(propertiesSelectorContent);
+        }
+
+
+        function onChangeSelectedValue(elemnt) {
+            var id = elemnt.id;
+            var index = parseInt(id.substring(13, id.length));
+            var selectedValue = $('#' + id).val();
+            var mergeDataJSON = JSON.parse(sessionStorage.getItem("mergedata"));
+            mergeDataJSON.valueSelections[index].selectedValue = selectedValue;
+            sessionStorage.setItem('mergedata', JSON.stringify(mergeDataJSON));
+            for (i = 0; i < mergeDataJSON.valueSelections[index].values.length; i++) {
+                if (selectedValue == mergeDataJSON.valueSelections[index].values[i].value) {
+                    $('#propertiesSelectorSource' + index).attr('title', mergeDataJSON.valueSelections[index].values[i].sources[0].serviceName);
+                    $('#propertiesSelectorSource' + index).html(mergeDataJSON.valueSelections[index].values[i].sources[0].envName);
+                    break;
+                }
+            }
+        }
+
+
+        function onClickGenerateTemplateConf(elemnt) {
+            var mergeDataJSON = JSON.parse(sessionStorage.getItem('mergedata'));
+            var externalizeDataJSON = JSON.parse(sessionStorage.getItem('externalizedata'));
+            console.log(externalizeDataJSON);
+            console.log(mergeDataJSON);
+            processTemplateConfValue(externalizeDataJSON, mergeDataJSON);
+            document.getElementById("TemplateConfValuesButton").click();
+        }
+
+
+        function onClickPopulateAppProp(elemnt) {
+            var templateList = $('#template').val().split('\n');
+            var confValList = $('#confval').val().split('\n');
+            var appPropContent = '';
+            var currentTag = '';
+            var tagPropCount = 0;
+            var tagContent = '';
+            for (i = 0; i < templateList.length; i++) {
+                var index = templateList[i].indexOf('=');
+                appPropRow = '';
+                if (index > 0) {
+                    var propName = templateList[i].substring(index, templateList[i].length).replace("=", "").replace("${", "").replace("}", "").trim();
+                    for (j = 0; j < confValList.length; j++) {
+                        var valIndex = confValList[j].indexOf('=');
+                        if ((valIndex > 0) && (propName == confValList[j].substring(0, valIndex))) {
+                            appPropRow = templateList[i].substring(0, index) + '=' + confValList[j].substring(valIndex + 1, confValList[j].length);
+                        }
+                    }
+                } else {
+                    appPropRow = templateList[i].trim();
+                }
+
+                // CLEAN-UP TAGS WITH NO PROPERTIES...
+                if ((appPropRow.indexOf('#') > -1)) {
+                    if (tagPropCount > 0) {
+                        if (appPropContent != '') {
+                            appPropContent += '\n\n' + currentTag + tagContent;
+                        } else {
+                            appPropContent = currentTag + tagContent;
+                        }
+
+                        currentTag = appPropRow;
+                        tagContent = '';
+                        tagPropCount = 0;
+                    } else {
+                        currentTag += appPropRow;
+                    }
+                } else if (appPropRow.indexOf('=') > -1) {
+                    tagContent += '\n' + appPropRow;
+                    tagPropCount++;
+                }
+            }
+
+            if (tagPropCount > 0) {
+                if (appPropContent != '') {
+                    appPropContent += '\n\n' + currentTag + tagContent;
+                } else {
+                    appPropContent = currentTag + tagContent;
+                }
+            }
+
+            $('#appProp').val(appPropContent);
+            document.getElementById("ApplicationPropertiesButton").click();
+        }
+
+
+        function addUpdateValueSelections(mergeDataJSON, propertyName, selectedValue, templateInsertionIndex, valuesJSON) {
+            if (propertyName != null) {
+                var insertNew = true;
+                if (mergeDataJSON.valueSelections.length > 0) {
+                    for (k = 0; i < mergeDataJSON.valueSelections.length; k++) {
+                        if (mergeDataJSON.valueSelections[k].propertyName == propertyName) {
+                            if (selectedValue != null) {
+                                mergeDataJSON.valueSelections[k].selectedValue = selectedValue;
+                            }
+                            if (templateInsertionIndex != null) {
+                                mergeDataJSON.valueSelections[k].templateInsertionIndex = templateInsertionIndex;
+                            }
+                            if (valuesJSON != null) {
+                                mergeDataJSON.valueSelections[k].values = valuesJSON;
+                            }
+                            insertNew = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (insertNew) {
+                    mergeDataJSON.valueSelections.push({
+                        "propertyName": propertyName,
+                        "selectedValue": selectedValue,
+                        "templateInsertionIndex": templateInsertionIndex,
+                        "values": valuesJSON
+                    });
+                }
+            }
+            return mergeDataJSON;
+        }
+
+
+        function getExternalizedPropertyName(propertyName) {
+            return propertyName.toUpperCase().replaceAll(".", "_").replaceAll("-", "_").replaceAll("+", "_").replaceAll("*", "_").replaceAll("&", "_").replaceAll("@", "_").replaceAll("~", "_");
+        }
+
+
+        function getIndexOfPropertyInMergeData(propertyName, mergeDataJSON) {
+            for (z = 0; z < mergeDataJSON.valueSelections.length; z++) {
+                if (getExternalizedPropertyName(propertyName) == getExternalizedPropertyName(mergeDataJSON.valueSelections[z].propertyName)) {
+                    return z;
+                }
+            }
+            return -1;
+        }
+
+
+        function getIndexOfTemplateInsertionIndex(templateInsertionIndex, mergeDataJSON) {
+            for (z = 0; z < mergeDataJSON.valueSelections.length; z++) {
+                if (templateInsertionIndex == mergeDataJSON.valueSelections[z].templateInsertionIndex) {
+                    return z;
+                }
+            }
+            return -1;
+        }
+
+
+        function getPropertyNameFromRow(contentRow) {
+            var equalIndex = contentRow.indexOf('=');
+            if (equalIndex > 0) {
+                return contentRow.substring(0, equalIndex);
+            }
+            return '';
+        }
+
+
+        function onCopyTemplate(elemnt) {
+            navigator.clipboard.writeText($('#template').val());
+        }
+
+
+        function onCopyConf(elemnt) {
+            navigator.clipboard.writeText($('#confval').val());
+        }
+
+
+        function onCopyAppProp() {
+            navigator.clipboard.writeText($('#appProp').val());
+        }
+
+
+        function onChangeFixdata() {
+            loadEnvironmentsServicesDataSources(sessionStorage.getItem('fixdata'));
+            checkEnableDataMineButton();
+            checkEnableLoadDBButtons();
+            checkExternalizeButton();
+        }
+
+
+        $(document).ready(function () {
+            // Initialize externalizer data
+            $.get('data', {}, function (data) {
+                sessionStorage.setItem('fixdata', data);
+                onChangeFixdata();
+            })
+
+            // Get the element with id="defaultOpen" and click on it
+            document.getElementById("PropertyValuesButton").click();
+
+            //testTemplateInsertionIndex();
+        });
+    </script>
+</head>
+<body>
+    <main>
+        <div class="container-fluid">
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+            <div class="well"><a href="../toolsadmin">Admin</a></div>
+            <div class="well"><a href="../dataporter">Data Port</a></div>
+
+            <div class="tab">
+                <button id="PropertyValuesButton" class="tablink" onclick="openPage('PropertyValues', this, '#417690')">Property-Values</button>
+                <button id="PropertyEditorButton" class="tablink" onclick="openPage('PropertyEditor', this, '#417690')">Property Editor</button>
+                <button id="TemplateConfValuesButton" class="tablink" onclick="openPage('TemplateConfValues', this, '#417690')">Template/Conf Values</button>
+                <button id="ApplicationPropertiesButton" class="tablink" onclick="openPage('ApplicationProperties', this, '#417690')">Application Properties</button>
+            </div>
+
+            <!-- Tab content -->
+            <div id="PropertyValues" class="tabcontent">
+                <div class="well">
+                    <button class="btn btn-primary" id="loadPropValTemplateButton" onclick="onLoadPropertyValue(this)">Retrieve Property Values</button>
+                </div>
+                <div class="well">
+                    <h6>PROPERTY-VALUES</h6>
+                    <div class="form-group mb-3">
+                        <textarea class="form-control" id="propval" name="propval" rows="10" cols="120"></textarea>
+                    </div>
+                    <div class="form-group">
+
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Services:
+                        <select name="services" id="services" onchange="onChangeService(this)"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="PropertyEditor" class="tabcontent">
+                <div class="well">
+                    <button class="btn btn-primary" id="mergeData" onclick="onClickGenerateTemplateConf(this)">Generate Template/Conf-Values</button>
+                </div>
+                <div class="well">
+                    <div class="row">
+                        <div class="col">
+                            Environment:
+                            <select name="propEditorEnvironment" id="propEditorEnvironment" onchange="onChangePropEditorEnv(this)">
+                            </select>
+                        </div>
+                        <div class="col">
+
+                        </div>
+                    </div>
+                </div>
+                <div class="well" id="propertiesSelector">
+                </div>
+            </div>
+
+            <div id="TemplateConfValues" class="tabcontent">
+                <div class="well">
+                    <button class="btn btn-primary" id="populateAppProp" onclick="onClickPopulateAppProp(this)">Populate Application.properties</button>
+                </div>
+                <div class="well">
+                    <br />
+                    <h6>TEMPLATE</h6>
+                    <button class="btn btn-primary" id="copyTemplate" onclick="onCopyTemplate(this)">Copy</button>
+                    <div class="form-group mb-3">
+                        <textarea class="form-control" id="template" name="template" rows="10" cols="120" readonly></textarea> <br />
+                    </div>
+                </div>
+                <div class="well">
+                    <br />
+                    <h6>CONF VALUE</h6>
+                    Environment:
+                    <select name="confEnvironment" id="confEnvironment" onchange="onChangeConfEnv(this)">
+                    </select>
+                    <button class="btn btn-primary" id="copyConf" onclick="onCopyConf(this)">Copy</button>
+                    <div class="form-group mb-3">
+                        <textarea class="form-control" id="confval" name="confval" rows="10" cols="120" readonly></textarea>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="ApplicationProperties" class="tabcontent">
+                <div class="well">
+                    <br />
+                    <h6>Application.Properties</h6>
+                    <button class="btn btn-primary" id="copyAppProp" onclick="onCopyAppProp(this)">Copy</button>
+                    <div class="form-group mb-3">
+                        <textarea class="form-control" id="appProp" name="appProp" rows="10" cols="120" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
