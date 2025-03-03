@@ -32,42 +32,34 @@ E) Go to the "Scripts" sub-folder located inside the environment folder that has
 
 F) Activate the virtual environment by running the following commands:
 
-	1)
- 
-./Activate.ps1
-cd ../..
+	./Activate.ps1
+	cd ../..
 
 G) Execute the following commands in sequence:
 
-	1)
- 
-python manage.py makemigrations logsearch
+	python manage.py makemigrations logsearch
 
-python manage.py makemigrations externalizer
+	python manage.py makemigrations externalizer
 
-python manage.py makemigrations	dataporter
+	python manage.py makemigrations	dataporter
 
-python manage.py migrate logsearch
+	python manage.py migrate logsearch
 
-python manage.py migrate externalizer
+	python manage.py migrate externalizer
 
-python manage.py migrate dataporter
+	python manage.py migrate dataporter
 
-python manage.py migrate
+	python manage.py migrate
 
-python manage.py collectstatic
+	python manage.py collectstatic
 
 H) Create Superuser:
 
-	1)
- 
-python manage.py createsuperuser
+	python manage.py createsuperuser
 
 I) Run the Django Server:
 
-	1)
- 
-python manage.py runserver
+	python manage.py runserver
 
 J) Log into Django Admin page using the useruser that has been created: http://127.0.0.1:8000/toolsadmin/login/?next=/toolsadmin/
 
@@ -75,8 +67,6 @@ K) Update the import_export package's resources.py located in the virtual enviro
 
 L) Add the code below in the Resource class's __init__ method, just below the line "self.fields = deepcopy(self.fields)"
 
- 	1)
-  
         for key, value in self.fields.items():
             if 'ID' in key:
                 print(key)
@@ -86,18 +76,15 @@ L) Add the code below in the Resource class's __init__ method, just below the li
 
 M) Populate the database using imports from SCV files (IMPORT the files below in sequence):
 
-	1)
- 
-SysConfig-xx.csv = Configurations
+	SysConfig-xx.csv = Configurations
 
-LogFile-xx.csv = LogFiles
+	LogFile-xx.csv = LogFiles
 
-Environment-xx.csv = Environments
+	Environment-xx.csv = Environments
 
-Server-xx.csv = Servers
+	Server-xx.csv = Servers
 
-EnvServer-xx.csv = EnvServers
-
+	EnvServer-xx.csv = EnvServers
 
 N) Add "UsersDetails" data for dataporter:
 
@@ -117,15 +104,13 @@ O) Add "Server users" Credentials for dataporter (services access) and Log Searc
 
 P) Fill-in "Server" credentials per server to be used as a default credential when no credential is found in "Server users".
 
-	1)
- 
-APPS URLs:
+	APPS URLs:
 
-DATAPORTER: http://127.0.0.1:8000/dataporter/
+	DATAPORTER: http://127.0.0.1:8000/dataporter/
 
-EXTERNALIZER: http://127.0.0.1:8000/externalizer/
+	EXTERNALIZER: http://127.0.0.1:8000/externalizer/
 
-LOGSEARCH: http://127.0.0.1:8000/logsearch/
+	LOGSEARCH: http://127.0.0.1:8000/logsearch/
 
 
 =====================================================================================================================================
