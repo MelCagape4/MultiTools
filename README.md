@@ -32,11 +32,15 @@ E) Go to the "Scripts" sub-folder located inside the environment folder that has
 
 F) Activate the virtual environment by running the following commands:
 
+	1)
+ 
 ./Activate.ps1
 cd ../..
 
 G) Execute the following commands in sequence:
 
+	1)
+ 
 python manage.py makemigrations logsearch
 
 python manage.py makemigrations externalizer
@@ -55,18 +59,24 @@ python manage.py collectstatic
 
 H) Create Superuser:
 
+	1)
+ 
 python manage.py createsuperuser
 
 I) Run the Django Server:
 
+	1)
+ 
 python manage.py runserver
 
 J) Log into Django Admin page using the useruser that has been created: http://127.0.0.1:8000/toolsadmin/login/?next=/toolsadmin/
 
 K) Update the import_export package's resources.py located in the virtual environment (MultiTools/<environment-name>/Lib/site-packages/import_export/resources.py):
 
-	1) Add the code below in the Resource class's __init__ method, just below the line "self.fields = deepcopy(self.fields)"
-	
+L) Add the code below in the Resource class's __init__ method, just below the line "self.fields = deepcopy(self.fields)"
+
+ 	1)
+  
         for key, value in self.fields.items():
             if 'ID' in key:
                 print(key)
@@ -74,8 +84,10 @@ K) Update the import_export package's resources.py located in the virtual enviro
                 break
 
 
-L) Populate the database using imports from SCV files (IMPORT the files below in sequence):
+M) Populate the database using imports from SCV files (IMPORT the files below in sequence):
 
+	1)
+ 
 SysConfig-xx.csv = Configurations
 
 LogFile-xx.csv = LogFiles
@@ -87,7 +99,7 @@ Server-xx.csv = Servers
 EnvServer-xx.csv = EnvServers
 
 
-M) Add "UsersDetails" data for dataporter:
+N) Add "UsersDetails" data for dataporter:
 
 	1) Create a Personal Access Token to be used to access the repositories.
  
@@ -98,13 +110,15 @@ M) Add "UsersDetails" data for dataporter:
 		RepositoryPrivateToken - The Personal Access Token created to access the repositories
 
 
-N) Add "Server users" Credentials for dataporter (services access) and Log Search Apps:
+O) Add "Server users" Credentials for dataporter (services access) and Log Search Apps:
 
 	1) Fill-in the user credentials per server.
 
 
-O) Fill-in "Server" credentials per server to be used as a default credential when no credential is found in "Server users".
+P) Fill-in "Server" credentials per server to be used as a default credential when no credential is found in "Server users".
 
+	1)
+ 
 APPS URLs:
 
 DATAPORTER: http://127.0.0.1:8000/dataporter/
