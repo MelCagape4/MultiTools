@@ -5,8 +5,11 @@ This Project requires, at least, a Python virtual environment to run the Django 
 
 
 DEPLOYMENT PROCEDURES:
+
 A) Clone Repository
+
 B) Open Visual Studio Project (WebAppCollections.sln)
+
 C) Add Environment:
 	1) In the Visual Studio toolbars, click on the "virtualenv" dropdown box.
  	2) Select "Add Environment..." menu item.
