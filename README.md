@@ -5,11 +5,24 @@ This Project requires, at least, a Python virtual environment to run the Django 
 
 
 DEPLOYMENT PROCEDURES:
-- Clone Repository
-- Open Visual Studio Project (WebAppCollections.sln)
-- Add Environment
-	1) 
-- Migrate Apps. Execute the following commands:
+A) Clone Repository
+B) Open Visual Studio Project (WebAppCollections.sln)
+C) Add Environment:
+	1) In the Visual Studio toolbars, click on the "virtualenv" dropdown box.
+ 	2) Select "Add Environment..." menu item.
+  	3) Fill-in the following:
+  	   - Name = folder name of the virtual environment which resides on the repository folder.
+  	   - Install packages from file = The value should be the path to "requirements.txt" file.
+  	   - Set as current environment = Check this box to set as default environment.
+  	4) Click "Create" button to create the environment and download the necessary packages.
+D) Open a Powershell and go to the repository folder (/MultiTools).
+E) Go to the "Scripts" sub-folder located inside the environment folder that has been created in Visual Studio (/MultiTools/<environment-name>/Scripts):
+F) Activate the virtual environment by running the following commands:
+
+./Activate.ps1
+cd ../..
+
+G) Execute the following commands in sequence:
 
 python manage.py makemigrations logsearch
 python manage.py makemigrations externalizer
@@ -18,16 +31,19 @@ python manage.py migrate logsearch
 python manage.py migrate externalizer
 python manage.py migrate dataporter
 python manage.py migrate
+python manage.py collectstatic
 
-- Create Superuser:
+H) Create Superuser:
 
 python manage.py createsuperuser
 
-- Run the Django Server:
+I) Run the Django Server:
 
 python manage.py runserver
 
-- Update the import_export package's resources.py located in the virtual environment (<virtual env>/Lib/site-packages/import_export/resources.py):
+J) Log into Django Admin page using the useruser that has been created: http://127.0.0.1:8000/toolsadmin/login/?next=/toolsadmin/
+
+K) Update the import_export package's resources.py located in the virtual environment (MultiTools/<environment-name>/Lib/site-packages/import_export/resources.py):
 	1) Add the code below in the Resource class's __init__ method, just below the line "self.fields = deepcopy(self.fields)"
 	
         for key, value in self.fields.items():
@@ -37,7 +53,7 @@ python manage.py runserver
                 break
 
 
-- Populate the database using imports from SCV files (Run the files below in sequence):
+L) Populate the database using imports from SCV files (IMPORT the files below in sequence):
 SysConfig-xx.csv = Configurations
 LogFile-xx.csv = LogFiles
 Environment-xx.csv = Environments
@@ -45,18 +61,18 @@ Server-xx.csv = Servers
 EnvServer-xx.csv = EnvServers
 
 
-- Add "UsersDetails" data for dataporter:
+M) Add "UsersDetails" data for dataporter:
 	1) Create a Personal Access Token to be used to access the repositories.
 	2) Fill-in the data of the UsersDetails:
 		RepositoryURL - The base URL of the repositories. (E.G. https://github.com)
 		RepositoryPrivateToken - The Personal Access Token created to access the repositories
 
 
-- Add "Server users" Credentials for dataporter (services access) and Log Search Apps:
+N) Add "Server users" Credentials for dataporter (services access) and Log Search Apps:
 	1) Fill-in the user credentials per server.
 
 
-- Fill-in "Server" credentials per server to be used as a default credential when no credential is found in "Server users".
+O) Fill-in "Server" credentials per server to be used as a default credential when no credential is found in "Server users".
 
 
 =====================================================================================================================================
