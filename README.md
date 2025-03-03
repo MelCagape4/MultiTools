@@ -1,8 +1,65 @@
 # MultiTools
 A collection of django-based apps
 
-
 This Project requires, at least, a Python virtual environment to run the Django project. 
+
+
+DEPLOYMENT PROCEDURES:
+- Clone Repository
+- Open Visual Studio Project (WebAppCollections.sln)
+- Add Environment
+	1) 
+- Migrate Apps. Execute the following commands:
+
+python manage.py makemigrations logsearch
+python manage.py makemigrations externalizer
+python manage.py makemigrations	dataporter
+python manage.py migrate logsearch
+python manage.py migrate externalizer
+python manage.py migrate dataporter
+python manage.py migrate
+
+- Create Superuser:
+
+python manage.py createsuperuser
+
+- Run the Django Server:
+
+python manage.py runserver
+
+- Update the import_export package's resources.py located in the virtual environment (<virtual env>/Lib/site-packages/import_export/resources.py):
+	1) Add the code below in the Resource class's __init__ method, just below the line "self.fields = deepcopy(self.fields)"
+	
+        for key, value in self.fields.items():
+            if 'ID' in key:
+                print(key)
+                self._meta.import_id_fields = [key]
+                break
+
+
+- Populate the database using imports from SCV files (Run the files below in sequence):
+SysConfig-xx.csv = Configurations
+LogFile-xx.csv = LogFiles
+Environment-xx.csv = Environments
+Server-xx.csv = Servers
+EnvServer-xx.csv = EnvServers
+
+
+- Add "UsersDetails" data for dataporter:
+	1) Create a Personal Access Token to be used to access the repositories.
+	2) Fill-in the data of the UsersDetails:
+		RepositoryURL - The base URL of the repositories. (E.G. https://github.com)
+		RepositoryPrivateToken - The Personal Access Token created to access the repositories
+
+
+- Add "Server users" Credentials for dataporter (services access) and Log Search Apps:
+	1) Fill-in the user credentials per server.
+
+
+- Fill-in "Server" credentials per server to be used as a default credential when no credential is found in "Server users".
+
+
+=====================================================================================================================================
 
 ADD A VIRTUAL ENVIRONMENT (COMMAND LINE) (WARNING: May have issue with script permission depending on your OS setup):
 To add virtual environment through command line, execute the following commands:
