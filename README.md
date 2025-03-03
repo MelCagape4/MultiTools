@@ -74,6 +74,11 @@ N) Add "Server users" Credentials for dataporter (services access) and Log Searc
 
 O) Fill-in "Server" credentials per server to be used as a default credential when no credential is found in "Server users".
 
+APPS URLs:
+DATAPORTER: http://127.0.0.1:8000/dataporter/
+EXTERNALIZER: http://127.0.0.1:8000/externalizer/
+LOGSEARCH: http://127.0.0.1:8000/logsearch/
+
 
 =====================================================================================================================================
 
