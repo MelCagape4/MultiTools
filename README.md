@@ -62,7 +62,6 @@ L) Add the code below in the Resource class's __init__ method, just below the li
 
         for key, value in self.fields.items():
             if 'ID' in key:
-                print(key)
                 self._meta.import_id_fields = [key]
                 break
 
