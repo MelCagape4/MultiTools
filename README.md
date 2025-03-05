@@ -193,20 +193,3 @@ LogFiles - Data on types of logfiles
 Environments - Environment data
 Servers - Server data including IPs and credentials
 EnvServers - Data on server category per environment
-
-
-IMPORT ERROR FIX (DJANGO ADMIN):
-Edit the import_export resources.py, usually located at:
-
-	<python_library>/Lib/site-packages/import_export/resources.py
-
-Replace the line in __init__ method of the resource class:
-
-	self._meta.import_id_fields = xxxx
-
-with the follow block of code:
-
-	for key, value in self.fields.items():
-		if 'ID' in key:
-			self._meta.import_id_fields = [key]
-            break
