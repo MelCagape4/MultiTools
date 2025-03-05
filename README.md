@@ -66,7 +66,7 @@ L) Add the code below in the Resource class's __init__ method, just below the li
                 break
 
 
-M) Populate the database using imports from SCV files (IMPORT the files below in sequence):
+M) Populate the database using imports from CSV files (IMPORT the files below in sequence):
 
 	SysConfig-xx.csv = Configurations
 	LogFile-xx.csv = LogFiles
