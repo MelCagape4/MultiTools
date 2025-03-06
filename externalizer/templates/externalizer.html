@@ -11,7 +11,7 @@
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
     <script>
 
-        //=========================================================== EXTERNALIZATION FUNCTIONS ====================================================================
+        //=========================================================== UI/UX FUNCTIONS ====================================================================
 
         function onLoadPropertyValue(elemnt) {
             console.log('onLoadPropertyValue()...');
@@ -52,14 +52,6 @@
                     alert(response["responseJSON"]["error"]);
                 }
             });
-        }
-
-
-        function processTemplateConfValue(externalizeDataJSON, mergeDataJSON) {
-            console.log('processTemplateConfValue()...');
-            processTemplate(externalizeDataJSON, mergeDataJSON);
-            processConfEnvironment(externalizeDataJSON);
-            processConfValues(externalizeDataJSON, mergeDataJSON);
         }
 
 
@@ -302,6 +294,181 @@
         }
 
 
+        function buildPropertiesSelectorFromMergeData(mergeDataJSON, env = '') {
+            var propertiesSelectorContent = '<div class="row"><div class="col">PROPERTYNAME<input id="propertiesSelectorCount" type="hidden" value="' + mergeDataJSON.valueSelections.length + '" ></div><div class="col">VALUE</div><div class="col">SOURCE</div></div>';
+            for (i = 0; i < mergeDataJSON.valueSelections.length; i++) {
+                propertiesSelectorContent += '<div class="row"><div class="col">' + mergeDataJSON.valueSelections[i].propertyName + '</div><div class="col"><select id="selectedValue' + i + '" onchange="onChangeSelectedValue(this)" >';
+                var optionsContent = '';
+                var sourceContent = '';
+                var tooltipContent = '';
+                for (j = 0; j < mergeDataJSON.valueSelections[i].values.length; j++) {
+                    optionsContent += '<option value="' + mergeDataJSON.valueSelections[i].values[j].value + '" ' + ((mergeDataJSON.valueSelections[i].values[j].value == mergeDataJSON.valueSelections[i].selectedValue) ? 'selected' : '') +
+                        '>' + mergeDataJSON.valueSelections[i].values[j].value + '</option>';
+
+                    if (env != '') {
+                        for (k = 0; k < mergeDataJSON.valueSelections[i].values[j].sources.length; k++) {
+                            if (mergeDataJSON.valueSelections[i].values[j].sources[k].envName.trim().toUpperCase() == env.trim().toUpperCase()) {
+                                sourceContent = mergeDataJSON.valueSelections[i].values[j].sources[k].envName;
+                                tooltipContent = mergeDataJSON.valueSelections[i].values[j].sources[k].serviceName;
+                                break;
+                            }
+                        }
+                    }
+                    if (sourceContent == '' && mergeDataJSON.valueSelections[i].values[j].sources.length > 0) {
+                        sourceContent = mergeDataJSON.valueSelections[i].values[j].sources[0].envName;
+                        tooltipContent = mergeDataJSON.valueSelections[i].values[j].sources[0].serviceName;
+                    }
+                }
+                propertiesSelectorContent += optionsContent + '</select></div><div id="propertiesSelectorSource' + i + '" class="col" title="' + tooltipContent + '">' + sourceContent + '</div></div>';
+            }
+            $('#propertiesSelector').html(propertiesSelectorContent);
+        }
+
+
+        function onChangeSelectedValue(elemnt) {
+            var id = elemnt.id;
+            var index = parseInt(id.substring(13, id.length));
+            var selectedValue = $('#' + id).val();
+            var mergeDataJSON = JSON.parse(sessionStorage.getItem("mergedata"));
+            mergeDataJSON.valueSelections[index].selectedValue = selectedValue;
+            sessionStorage.setItem('mergedata', JSON.stringify(mergeDataJSON));
+            for (i = 0; i < mergeDataJSON.valueSelections[index].values.length; i++) {
+                if (selectedValue == mergeDataJSON.valueSelections[index].values[i].value) {
+                    $('#propertiesSelectorSource' + index).attr('title', mergeDataJSON.valueSelections[index].values[i].sources[0].serviceName);
+                    $('#propertiesSelectorSource' + index).html(mergeDataJSON.valueSelections[index].values[i].sources[0].envName);
+                    break;
+                }
+            }
+        }
+
+
+        function onClickGenerateTemplateConf(elemnt) {
+            var mergeDataJSON = JSON.parse(sessionStorage.getItem('mergedata'));
+            var externalizeDataJSON = JSON.parse(sessionStorage.getItem('externalizedata'));
+            console.log(externalizeDataJSON);
+            console.log(mergeDataJSON);
+            processTemplateConfValue(externalizeDataJSON, mergeDataJSON);
+            document.getElementById("TemplateConfValuesButton").click();
+        }
+
+
+        function onClickPopulateAppProp(elemnt) {
+            var templateList = $('#template').val().split('\n');
+            var confValList = $('#confval').val().split('\n');
+            var appPropContent = '';
+            var currentTag = '';
+            var tagPropCount = 0;
+            var tagContent = '';
+
+            for (i = 0; i < templateList.length; i++) {
+                var index = templateList[i].indexOf('=');
+                appPropRow = '';
+                if (index > 0) {
+                    var propName = templateList[i].substring(index, templateList[i].length).replace("=", "").replace("${", "").replace("}", "").trim();
+                    for (j = 0; j < confValList.length; j++) {
+                        var valIndex = confValList[j].indexOf('=');
+                        if ((valIndex > 0) && (propName == confValList[j].substring(0, valIndex))) {
+                            appPropRow = templateList[i].substring(0, index) + '=' + confValList[j].substring(valIndex + 1, confValList[j].length);
+                        }
+                    }
+                } else {
+                    appPropRow = templateList[i].trim();
+                }
+
+                // CLEAN-UP TAGS WITH NO PROPERTIES...
+                if ((appPropRow.indexOf('#') > -1)) {
+                    if (tagPropCount > 0) {
+                        if (appPropContent != '') {
+                            appPropContent += '\n\n' + currentTag + tagContent;
+                        } else {
+                            appPropContent = currentTag + tagContent;
+                        }
+
+                        currentTag = appPropRow;
+                        tagContent = '';
+                        tagPropCount = 0;
+                    } else {
+                        currentTag += appPropRow;
+                    }
+                } else if (appPropRow.indexOf('=') > -1) {
+                    tagContent += '\n' + appPropRow;
+                    tagPropCount++;
+                }
+            }
+
+            if (tagPropCount > 0) {
+                if (appPropContent != '') {
+                    appPropContent += '\n\n' + currentTag + tagContent;
+                } else {
+                    appPropContent = currentTag + tagContent;
+                }
+            }
+
+            $('#appProp').val(appPropContent);
+            document.getElementById("ApplicationPropertiesButton").click();
+        }
+
+
+        function processTemplateConfValue(externalizeDataJSON, mergeDataJSON) {
+            console.log('processTemplateConfValue()...');
+            processTemplate(externalizeDataJSON, mergeDataJSON);
+            processConfEnvironment(externalizeDataJSON);
+            processConfValues(externalizeDataJSON, mergeDataJSON);
+        }
+
+
+        function processConfEnvironment(externalizeDataJSON) {
+            var confEnvContent = '';
+            var env = $('#propEditorEnvironment').val();
+            if (env == 'DEFAULT') env = 'DEV';
+            for (i = 0; i < externalizeDataJSON.confValues.length; i++) {
+                confEnvContent += '<option value="' + externalizeDataJSON.confValues[i].envName + '" ' + (externalizeDataJSON.confValues[i].envName == env ? 'selected="selected"' : '') + '>' + externalizeDataJSON.confValues[i].envName + '</option>';
+            }
+            $('#confEnvironment').html(confEnvContent);
+        }
+
+
+        function onCopyTemplate(elemnt) {
+            navigator.clipboard.writeText($('#template').val());
+        }
+
+
+        function onCopyConf(elemnt) {
+            navigator.clipboard.writeText($('#confval').val());
+        }
+
+
+        function onCopyAppProp() {
+            navigator.clipboard.writeText($('#appProp').val());
+        }
+
+
+        function onChangeFixdata() {
+            loadEnvironmentsServicesDataSources(sessionStorage.getItem('fixdata'));
+            checkEnableDataMineButton();
+            checkEnableLoadDBButtons();
+            checkExternalizeButton();
+        }
+
+
+        $(document).ready(function () {
+            // Initialize externalizer data
+            $.get('data', {}, function (data) {
+                sessionStorage.setItem('fixdata', data);
+                onChangeFixdata();
+            })
+
+            // Get the element with id="defaultOpen" and click on it
+            document.getElementById("PropertyValuesButton").click();
+
+            //testTemplateInsertionIndex();
+        });
+
+
+        //=======================================================================================================================================================
+        //=========================================================== DATA PROCESS FUNCTIONS ====================================================================
+        //=======================================================================================================================================================
+
         function testTemplateInsertionIndex() {
             var templateRows = "#tag1\nproperty01.name01.value01=${PROPERTY01_NAME01_VALUE01}\nproperty01.name01.value02=${PROPERTY01_NAME01_VALUE02}\n\n#tag01\nproperty03.name02.value01=${PROPERTY03_NAME02_VALUE01}\nproperty03.name02.value03=${PROPERTY03_NAME02_VALUE03}";
             console.log(templateRows);
@@ -448,17 +615,6 @@
         }
 
 
-        function processConfEnvironment(externalizeDataJSON) {
-            var confEnvContent = '';
-            var env = $('#propEditorEnvironment').val();
-            if (env == 'DEFAULT') env = 'DEV';
-            for (i = 0; i < externalizeDataJSON.confValues.length; i++) {
-                confEnvContent += '<option value="' + externalizeDataJSON.confValues[i].envName + '" ' + (externalizeDataJSON.confValues[i].envName == env ? 'selected="selected"' : '') + '>' + externalizeDataJSON.confValues[i].envName + '</option>';
-            }
-            $('#confEnvironment').html(confEnvContent);
-        }
-
-
         function processConfValues(externalizeDataJSON, mergeDataJSON) {
             var env = $('#confEnvironment').val();
             var confRows = null;
@@ -498,120 +654,6 @@
             }
 
             $('#confval').val(confValueContent);
-        }
-
-
-        function buildPropertiesSelectorFromMergeData(mergeDataJSON, env='') {
-            var propertiesSelectorContent = '<div class="row"><div class="col">PROPERTYNAME<input id="propertiesSelectorCount" type="hidden" value="' + mergeDataJSON.valueSelections.length + '" ></div><div class="col">VALUE</div><div class="col">SOURCE</div></div>';
-            for (i = 0; i < mergeDataJSON.valueSelections.length; i++) {
-                propertiesSelectorContent += '<div class="row"><div class="col">' + mergeDataJSON.valueSelections[i].propertyName + '</div><div class="col"><select id="selectedValue' + i + '" onchange="onChangeSelectedValue(this)" >';
-                var optionsContent = '';
-                var sourceContent = '';
-                var tooltipContent = '';
-                for (j = 0; j < mergeDataJSON.valueSelections[i].values.length; j++) {
-                    optionsContent += '<option value="' + mergeDataJSON.valueSelections[i].values[j].value + '" ' + ((mergeDataJSON.valueSelections[i].values[j].value == mergeDataJSON.valueSelections[i].selectedValue) ? 'selected' : '') +
-                        '>' + mergeDataJSON.valueSelections[i].values[j].value + '</option>';
-
-                    if (env != '') {
-                        for (k = 0; k < mergeDataJSON.valueSelections[i].values[j].sources.length; k++) {
-                            if (mergeDataJSON.valueSelections[i].values[j].sources[k].envName.trim().toUpperCase() == env.trim().toUpperCase()) {
-                                sourceContent = mergeDataJSON.valueSelections[i].values[j].sources[k].envName;
-                                tooltipContent = mergeDataJSON.valueSelections[i].values[j].sources[k].serviceName;
-                                break;
-                            }
-                        }
-                    }
-                    if (sourceContent == '' && mergeDataJSON.valueSelections[i].values[j].sources.length > 0) {
-                        sourceContent = mergeDataJSON.valueSelections[i].values[j].sources[0].envName;
-                        tooltipContent = mergeDataJSON.valueSelections[i].values[j].sources[0].serviceName;
-                    }
-                }
-                propertiesSelectorContent += optionsContent + '</select></div><div id="propertiesSelectorSource' + i + '" class="col" title="' + tooltipContent + '">' + sourceContent + '</div></div>';
-            }
-            $('#propertiesSelector').html(propertiesSelectorContent);
-        }
-
-
-        function onChangeSelectedValue(elemnt) {
-            var id = elemnt.id;
-            var index = parseInt(id.substring(13, id.length));
-            var selectedValue = $('#' + id).val();
-            var mergeDataJSON = JSON.parse(sessionStorage.getItem("mergedata"));
-            mergeDataJSON.valueSelections[index].selectedValue = selectedValue;
-            sessionStorage.setItem('mergedata', JSON.stringify(mergeDataJSON));
-            for (i = 0; i < mergeDataJSON.valueSelections[index].values.length; i++) {
-                if (selectedValue == mergeDataJSON.valueSelections[index].values[i].value) {
-                    $('#propertiesSelectorSource' + index).attr('title', mergeDataJSON.valueSelections[index].values[i].sources[0].serviceName);
-                    $('#propertiesSelectorSource' + index).html(mergeDataJSON.valueSelections[index].values[i].sources[0].envName);
-                    break;
-                }
-            }
-        }
-
-
-        function onClickGenerateTemplateConf(elemnt) {
-            var mergeDataJSON = JSON.parse(sessionStorage.getItem('mergedata'));
-            var externalizeDataJSON = JSON.parse(sessionStorage.getItem('externalizedata'));
-            console.log(externalizeDataJSON);
-            console.log(mergeDataJSON);
-            processTemplateConfValue(externalizeDataJSON, mergeDataJSON);
-            document.getElementById("TemplateConfValuesButton").click();
-        }
-
-
-        function onClickPopulateAppProp(elemnt) {
-            var templateList = $('#template').val().split('\n');
-            var confValList = $('#confval').val().split('\n');
-            var appPropContent = '';
-            var currentTag = '';
-            var tagPropCount = 0;
-            var tagContent = '';
-            for (i = 0; i < templateList.length; i++) {
-                var index = templateList[i].indexOf('=');
-                appPropRow = '';
-                if (index > 0) {
-                    var propName = templateList[i].substring(index, templateList[i].length).replace("=", "").replace("${", "").replace("}", "").trim();
-                    for (j = 0; j < confValList.length; j++) {
-                        var valIndex = confValList[j].indexOf('=');
-                        if ((valIndex > 0) && (propName == confValList[j].substring(0, valIndex))) {
-                            appPropRow = templateList[i].substring(0, index) + '=' + confValList[j].substring(valIndex + 1, confValList[j].length);
-                        }
-                    }
-                } else {
-                    appPropRow = templateList[i].trim();
-                }
-
-                // CLEAN-UP TAGS WITH NO PROPERTIES...
-                if ((appPropRow.indexOf('#') > -1)) {
-                    if (tagPropCount > 0) {
-                        if (appPropContent != '') {
-                            appPropContent += '\n\n' + currentTag + tagContent;
-                        } else {
-                            appPropContent = currentTag + tagContent;
-                        }
-
-                        currentTag = appPropRow;
-                        tagContent = '';
-                        tagPropCount = 0;
-                    } else {
-                        currentTag += appPropRow;
-                    }
-                } else if (appPropRow.indexOf('=') > -1) {
-                    tagContent += '\n' + appPropRow;
-                    tagPropCount++;
-                }
-            }
-
-            if (tagPropCount > 0) {
-                if (appPropContent != '') {
-                    appPropContent += '\n\n' + currentTag + tagContent;
-                } else {
-                    appPropContent = currentTag + tagContent;
-                }
-            }
-
-            $('#appProp').val(appPropContent);
-            document.getElementById("ApplicationPropertiesButton").click();
         }
 
 
@@ -683,41 +725,6 @@
         }
 
 
-        function onCopyTemplate(elemnt) {
-            navigator.clipboard.writeText($('#template').val());
-        }
-
-
-        function onCopyConf(elemnt) {
-            navigator.clipboard.writeText($('#confval').val());
-        }
-
-
-        function onCopyAppProp() {
-            navigator.clipboard.writeText($('#appProp').val());
-        }
-
-
-        function onChangeFixdata() {
-            loadEnvironmentsServicesDataSources(sessionStorage.getItem('fixdata'));
-            checkEnableDataMineButton();
-            checkEnableLoadDBButtons();
-            checkExternalizeButton();
-        }
-
-
-        $(document).ready(function () {
-            // Initialize externalizer data
-            $.get('data', {}, function (data) {
-                sessionStorage.setItem('fixdata', data);
-                onChangeFixdata();
-            })
-
-            // Get the element with id="defaultOpen" and click on it
-            document.getElementById("PropertyValuesButton").click();
-
-            //testTemplateInsertionIndex();
-        });
     </script>
 </head>
 <body>
