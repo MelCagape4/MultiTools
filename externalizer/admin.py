@@ -19,6 +19,7 @@ class PropertyAdmin(DjangoQLSearchMixin, ImportExportActionModelAdmin):
 
 class EnvironmentPropertyAdmin(admin.ModelAdmin):
     list_display = ["environment", "prop", "propertyValue"]
+    list_filter = ["environment__envName", "prop__propertyName"]
     form = EnvironmentPropertyAdminForm
     
 
@@ -29,13 +30,15 @@ class ServicePropertyAdmin(DjangoQLSearchMixin, ImportExportActionModelAdmin):
     
 
 class EnvServicePropertyAdmin(DjangoQLSearchMixin, ImportExportActionModelAdmin):
-    list_display = ["serviceProperty", "environment", "propertyValue", "propertyTag", "propertyEnabled"]
+    list_display = ["serviceProperty", "propertyValue", "propertyTag", "propertyEnabled", "environment"]
+    search_fields = ['serviceProperty__prop__propertyName',]
     list_filter = ["environment__envName", "serviceProperty__service__serviceName", "serviceProperty__prop__propertyName"]
     form = EnvServicePropertyAdminForm
     
 
 class EnvServerAdmin(DjangoQLSearchMixin, ImportExportActionModelAdmin):
     list_display = ["environment", "server"]
+    list_filter = ["environment__envName"]
     form = EnvServerAdminForm
 
 
