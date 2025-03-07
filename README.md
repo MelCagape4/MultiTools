@@ -6,7 +6,9 @@ PREDEPLOYMENT REQUIREMENTS:
 - Install latest python3
 - Install PIP: https://pip.pypa.io/en/stable/installation/
 - Install virtualenv
+
 pip install virtualenv
+
 
 DEPLOYMENT PROCEDURES:
 
