@@ -1,8 +1,12 @@
 # MultiTools
 A collection of django-based apps
 
-This Project requires, at least, a Python virtual environment to run the Django project. 
+PREDEPLOYMENT REQUIREMENTS:
 
+- Install latest python3
+- Install PIP: https://pip.pypa.io/en/stable/installation/
+- Install virtualenv
+pip install virtualenv
 
 DEPLOYMENT PROCEDURES:
 
