@@ -9,6 +9,7 @@ PREDEPLOYMENT REQUIREMENTS:
 
 	pip install virtualenv
 
+- Install MS Visual Studio to open WebAppCollections.sln for creating virtual environment. Alternatively, PowerShell console can also be used to create virtual environment but requires full admin access.
 
 DEPLOYMENT PROCEDURES:
 
